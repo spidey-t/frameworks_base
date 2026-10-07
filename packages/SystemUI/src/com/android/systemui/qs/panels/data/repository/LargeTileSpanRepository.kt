@@ -25,6 +25,9 @@ import android.provider.Settings
 import com.android.systemui.common.ui.data.repository.ConfigurationRepository
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SETTING
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
+import com.android.systemui.qs.panels.ui.compose.sanitizeInfinityQsStyle
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.emitOnStart
@@ -79,6 +82,10 @@ constructor(
         val cr = context.contentResolver
         cr.registerContentObserver(Settings.System.getUriFor(Settings.System.QS_PANEL_STYLE),
             /* notifyForDescendants */ false, observer, UserHandle.USER_ALL)
+        cr.registerContentObserver(
+            Settings.System.getUriFor(INFINITY_QS_STYLE_SETTING),
+            /* notifyForDescendants */ false, observer, UserHandle.USER_ALL,
+        )
         awaitClose { cr.unregisterContentObserver(observer) }
     }
 
@@ -93,9 +100,24 @@ constructor(
         }
     }
 
+    private fun readInfinityQsStyle(): Int {
+        return try {
+            sanitizeInfinityQsStyle(
+                Settings.System.getIntForUser(
+                    context.contentResolver, INFINITY_QS_STYLE_SETTING, 0,
+                    UserHandle.USER_CURRENT
+                )
+            )
+        } catch (_: Throwable) {
+            0
+        }
+    }
+
     val classicStyle: Flow<Boolean> =
         settingsChanges()
             .emitOnStart()
-            .mapDirect { readQSPanelStyleEnabled() }
+            .mapDirect {
+                readQSPanelStyleEnabled() && readInfinityQsStyle() != INFINITY_QS_STYLE_SPIDEY
+            }
             .distinctUntilChanged()
 }

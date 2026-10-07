@@ -45,9 +45,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
@@ -110,6 +112,7 @@ import com.android.systemui.qs.flags.QsDetailedView
 import com.android.systemui.qs.panels.ui.compose.BounceableInfo
 import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_HYPEROS
 import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_OXYGENOS
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
 import com.android.systemui.qs.panels.ui.compose.rememberInfinityQsStyle
 import com.android.systemui.qs.panels.ui.compose.Tooltip
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.ActiveIconCornerRadius
@@ -175,6 +178,7 @@ fun ContentScope.Tile(
     requestToggleTextFeedback: (TileSpec) -> Unit = {},
     detailsViewModel: DetailsViewModel?,
     enableRevealEffect: Boolean = false,
+    capsuleEdgeInset: Dp = 0.dp,
 ) {
     trace(tile.traceName) {
         val currentBounceableInfo by rememberUpdatedState(bounceableInfo)
@@ -196,8 +200,42 @@ fun ContentScope.Tile(
                 tile.state.collect { value = it.toIconProvider() }
             }
 
-        val tileGradient = rememberQSTileGradient()
-        val colors = TileDefaults.getColorForState(uiState, iconOnly, tileGradient)
+        val qsStyle = rememberInfinityQsStyle()
+        val isSpideyStyle = qsStyle == INFINITY_QS_STYLE_SPIDEY
+        val tileGradientRaw = rememberQSTileGradient()
+        val tileGradient = if (isSpideyStyle) null else tileGradientRaw
+        val colors =
+            run {
+                val base = TileDefaults.getColorForState(uiState, iconOnly, tileGradient)
+                if (isSpideyStyle) {
+                    val glassBase = Color.Black.copy(alpha = 0.3f)
+                    base.copy(
+                        background =
+                            if (iconOnly && uiState.visualState == STATE_ACTIVE) {
+                                base.background
+                            } else {
+                                glassBase
+                            },
+                        iconBackground =
+                            if (iconOnly) {
+                                base.iconBackground
+                            } else if (uiState.visualState == STATE_ACTIVE) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                LocalAndroidColorScheme.current.surfaceEffect2
+                            },
+                        label = if (iconOnly) base.label else MaterialTheme.colorScheme.onSurface,
+                        secondaryLabel =
+                            if (iconOnly) {
+                                base.secondaryLabel
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = .75f)
+                            },
+                    )
+                } else {
+                    base
+                }
+            }
         val hapticsViewModel: TileHapticsViewModel? =
             if (rememberTileHaptic()) {
                 rememberViewModel(traceName = "TileHapticsViewModel") {
@@ -209,23 +247,31 @@ fun ContentScope.Tile(
 
         val classicStyle = rememberQSPanelStyle()
         val classicIconSize = rememberClassicTileIconSize()
-        val iconShapeKey = rememberQSTileIconShapeKey()
-        val labelHide = classicStyle && rememberQSTileLabelHide()
+        val iconShapeKeyRaw = rememberQSTileIconShapeKey()
+        val iconShapeKey = if (isSpideyStyle) "circle" else iconShapeKeyRaw
+        val labelHide = !isSpideyStyle && classicStyle && rememberQSTileLabelHide()
         val tileHeight by animateDpAsState(
             targetValue = when {
+                isSpideyStyle && !iconOnly -> classicIconSize + 14.dp
+                isSpideyStyle -> classicIconSize + 34.dp
                 classicStyle && !labelHide -> classicIconSize + 16.dp
                 classicStyle -> classicIconSize
                 else -> CommonTileDefaults.TileHeight
             },
             label = "tileHeight",
         )
+        val spideyLabelReserve = if (isSpideyStyle && !iconOnly) 14.dp else 0.dp
 
         val shapeMode = rememberTileShapeMode()
         val animationStyle = rememberQSTileAnimationStyle()
         val wantCircle = shapeMode == 4 && iconOnly
+        val animatedTileShape = TileDefaults.animateTileShapeAsState(uiState, shapeMode).value
         val tileShape =
-            if (wantCircle && !classicStyle) CircleShape
-            else TileDefaults.animateTileShapeAsState(uiState, shapeMode).value
+            when {
+                wantCircle && !classicStyle -> CircleShape
+                isSpideyStyle && !iconOnly -> RoundedCornerShape(percent = 50)
+                else -> animatedTileShape
+            }
         val animatedColor by animateColorAsState(colors.background, label = "QSTileBackgroundColor")
         val isDualTarget = uiState.handlesToggleClick
         val interactionSource = remember { MutableInteractionSource() }
@@ -267,7 +313,9 @@ fun ContentScope.Tile(
         }
         
         val outerShape = if (wantCircle && !classicStyle) RoundedCornerShape(0.dp) else tileShape
-        val outerColor: () -> Color = if (wantCircle || classicStyle) { { Color.Transparent } } else { { animatedColor } }
+        val outerColor: () -> Color =
+            if (wantCircle || (classicStyle && iconOnly)) { { Color.Transparent } }
+            else { { animatedColor } }
         val focusBorderColor = MaterialTheme.colorScheme.secondary
 
         val expandable =
@@ -296,7 +344,9 @@ fun ContentScope.Tile(
                         }
                         .sysuiResTag("tile_expandable")
                         .fillMaxWidth()
+                        .padding(horizontal = capsuleEdgeInset)
                         .height(tileHeight)
+                        .padding(bottom = spideyLabelReserve)
                         .tileToggleAnimation(animationStyle, uiState.visualState)
                         .bounceable(
                             currentBounceableInfo.bounceable,
@@ -366,7 +416,7 @@ fun ContentScope.Tile(
                                 requestToggleTextFeedback(tile.spec)
                             }
                     }
-                if (wantCircle || classicStyle) {
+                if (wantCircle || (classicStyle && iconOnly)) {
                     val interaction = remember { MutableInteractionSource() }
 
                     Box(Modifier.fillMaxSize()) {
@@ -417,6 +467,7 @@ fun ContentScope.Tile(
                                     iconShapeKey = iconShapeKey,
                                     colors = colors,
                                     labelHide = labelHide,
+                                    fillWidth = false,
                                     modifier =
                                         Modifier.align(Alignment.TopCenter).bounceScale {
                                             currentBounceableInfo.bounceable.iconBounceScale
@@ -447,7 +498,11 @@ fun ContentScope.Tile(
                                     },
                             )
                         } else {
-                            val iconShape by TileDefaults.animateIconShapeAsState(uiState, shapeMode)
+                            val animatedIconShape by
+                                TileDefaults.animateIconShapeAsState(uiState, shapeMode)
+                            val iconShape =
+                                if (isSpideyStyle) RoundedCornerShape(percent = 50)
+                                else animatedIconShape
                             val secondaryClick: (() -> Unit)? =
                                 {
                                         hapticsViewModel?.setTileInteractionState(
@@ -473,6 +528,7 @@ fun ContentScope.Tile(
                                     Modifier.largeTilePadding(
                                         isDualTarget = uiState.handlesSettingsClick
                                     ),
+                                showIconBackground = isSpideyStyle,
                             )
                         }
                     }
@@ -761,6 +817,7 @@ private fun rememberForceWhiteIconOnActiveTile(): Boolean {
     if (!isDarkMode) return false
 
     val qsStyle = rememberInfinityQsStyle()
+    if (qsStyle == INFINITY_QS_STYLE_SPIDEY) return true
     val isHyperOrOxygenStyle =
         qsStyle == INFINITY_QS_STYLE_HYPEROS || qsStyle == INFINITY_QS_STYLE_OXYGENOS
     if (!isHyperOrOxygenStyle) return false

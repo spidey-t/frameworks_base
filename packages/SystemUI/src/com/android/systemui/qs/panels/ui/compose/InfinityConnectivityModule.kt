@@ -22,12 +22,14 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,8 +54,10 @@ import androidx.compose.ui.text.font.DeviceFontFamilyName
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.systemui.Dependency
 import com.android.systemui.gradient.rememberGradientEnabled
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberQSTileGradient
@@ -78,6 +82,7 @@ fun InfinityConnectivityModule(
     modifier: Modifier = Modifier,
     stackMobileBelowWifi: Boolean = false,
     capsuleStyle: Boolean = false,
+    capsuleRadius: Dp? = null,
     showWifiTile: Boolean = true,
     showMobileTile: Boolean = true,
 ) {
@@ -337,6 +342,7 @@ fun InfinityConnectivityModule(
                     onClick = { toggleWifi() },
                     onLongClick = { showInternetPopup() },
                     capsuleStyle = capsuleStyle,
+                    capsuleRadius = capsuleRadius,
                 )
             }
 
@@ -361,6 +367,7 @@ fun InfinityConnectivityModule(
                     onClick = { toggleMobileData() },
                     onLongClick = { launchMobileDataSettings() },
                     capsuleStyle = capsuleStyle,
+                    capsuleRadius = capsuleRadius,
                 )
             }
         }
@@ -385,6 +392,7 @@ fun InfinityConnectivityModule(
                     onClick = { toggleWifi() },
                     onLongClick = { showInternetPopup() },
                     capsuleStyle = capsuleStyle,
+                    capsuleRadius = capsuleRadius,
                 )
             }
 
@@ -409,6 +417,7 @@ fun InfinityConnectivityModule(
                     onClick = { toggleMobileData() },
                     onLongClick = { launchMobileDataSettings() },
                     capsuleStyle = capsuleStyle,
+                    capsuleRadius = capsuleRadius,
                 )
             }
         }
@@ -427,14 +436,23 @@ private fun InfinityConnectivityTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     capsuleStyle: Boolean,
+    capsuleRadius: Dp? = null,
     modifier: Modifier = Modifier,
 ) {
     val qsTileGradientEnabled = rememberGradientEnabled(Settings.System.QS_TILE_GRADIENT)
-    val bg = if (enabled) MaterialTheme.colorScheme.primary else TILE_INACTIVE
-    val iconTint = if (enabled && !qsTileGradientEnabled) MaterialTheme.colorScheme.onPrimary else Color.White
-    val textColor = if (enabled && !qsTileGradientEnabled) MaterialTheme.colorScheme.onPrimary else Color.White
+    val onDarkChip = capsuleRadius != null
+    val bg =
+        if (onDarkChip) Color.Black.copy(alpha = 0.3f)
+        else if (enabled) MaterialTheme.colorScheme.primary else TILE_INACTIVE
+    val iconTint =
+        if (onDarkChip && enabled) MaterialTheme.colorScheme.onPrimary
+        else if (onDarkChip) MaterialTheme.colorScheme.onSurface
+        else if (enabled && !qsTileGradientEnabled) MaterialTheme.colorScheme.onPrimary else Color.White
+    val textColor =
+        if (onDarkChip) MaterialTheme.colorScheme.onSurface
+        else if (enabled && !qsTileGradientEnabled) MaterialTheme.colorScheme.onPrimary else Color.White
     val tileBackgroundModifier =
-        if (enabled && activeBackgroundBrush != null) {
+        if (enabled && activeBackgroundBrush != null && !onDarkChip) {
             Modifier.background(activeBackgroundBrush)
         } else {
             Modifier.background(bg)
@@ -442,7 +460,10 @@ private fun InfinityConnectivityTile(
 
     Row(
         modifier = modifier
-            .clip(if (capsuleStyle) TILE_CAPSULE_SHAPE else TILE_SHAPE)
+            .clip(
+                if (capsuleRadius != null) RoundedCornerShape(capsuleRadius)
+                else if (capsuleStyle) TILE_CAPSULE_SHAPE else TILE_SHAPE
+            )
             .then(tileBackgroundModifier)
             .combinedClickable(
                 onClick = { if (available) onClick() },
@@ -452,12 +473,32 @@ private fun InfinityConnectivityTile(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = label,
-            tint = iconTint,
-            modifier = Modifier.size(30.dp),
-        )
+        if (onDarkChip) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (enabled) MaterialTheme.colorScheme.primary
+                        else LocalAndroidColorScheme.current.surfaceEffect2
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = label,
+                    tint = iconTint,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+        } else {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = label,
+                tint = iconTint,
+                modifier = Modifier.size(30.dp),
+            )
+        }
 
         Column(
             modifier = Modifier

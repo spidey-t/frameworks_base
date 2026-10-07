@@ -167,6 +167,8 @@ import com.android.systemui.common.ui.compose.load
 import com.android.systemui.common.ui.icons.Undo
 import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.qs.panels.shared.model.SizedTileImpl
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
+import com.android.systemui.qs.panels.ui.compose.rememberInfinityQsStyle
 import com.android.systemui.qs.panels.ui.compose.DragAndDropState
 import com.android.systemui.qs.panels.ui.compose.DragType
 import com.android.systemui.qs.panels.ui.compose.EditTileListState
@@ -932,8 +934,10 @@ private fun LazyGridItemScope.TileGridCell(
     val tileState by rememberTileState(cell.tile, selectionState)
     val resizingState = rememberResizingState(cell.tile.tileSpec, cell.isIcon)
     val panelStyle = rememberQSPanelStyle()
+    val panelProgressBlocked =
+        panelStyle && rememberInfinityQsStyle() != INFINITY_QS_STYLE_SPIDEY
     val progress: () -> Float = {
-        if (panelStyle) {
+        if (panelProgressBlocked) {
             0f
         } else if (tileState == TileState.Selected) {
             resizingState.progress()

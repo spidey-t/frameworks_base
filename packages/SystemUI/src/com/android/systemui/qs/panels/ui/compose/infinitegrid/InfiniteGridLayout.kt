@@ -16,6 +16,8 @@
 
 package com.android.systemui.qs.panels.ui.compose.infinitegrid
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,8 +30,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.animation.scene.ContentScope
@@ -39,7 +43,9 @@ import com.android.systemui.haptics.msdl.qs.TileHapticsViewModel
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.qs.panels.shared.model.SizedTileImpl
 import com.android.systemui.qs.panels.ui.compose.EditTileListState
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
 import com.android.systemui.qs.panels.ui.compose.PaginatableGridLayout
+import com.android.systemui.qs.panels.ui.compose.rememberInfinityQsStyle
 import com.android.systemui.qs.panels.ui.compose.TileListener
 import com.android.systemui.qs.panels.ui.compose.bounceableInfo
 import com.android.systemui.qs.panels.ui.viewmodel.BounceableTileViewModel
@@ -99,7 +105,14 @@ constructor(
         val scope = rememberCoroutineScope()
 
         val classicStyle = rememberQSPanelStyle()
-        val classicRowSpacing = if (classicStyle) rememberClassicTileRowSpacing() else dimensionResource(R.dimen.qs_tile_margin_vertical)
+        val classicRowSpacingBase = rememberClassicTileRowSpacing()
+        val qsStyle = rememberInfinityQsStyle()
+        val classicRowSpacing =
+            if (!classicStyle) {
+                dimensionResource(R.dimen.qs_tile_margin_vertical)
+            } else {
+                classicRowSpacingBase
+            }
 
         val bounceables =
             remember(sizedTiles) { List(sizedTiles.size) { BounceableTileViewModel() } }
@@ -108,37 +121,55 @@ constructor(
             LocalCustomColorScheme provides rememberCustomColorScheme(),
             LocalDualTargetTileStyle provides rememberDualTargetTileStyle()
         ) {
-            VerticalSpannedGrid(
-                columns = columns,
-                columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal),
-                rowSpacing = classicRowSpacing,
-                spans = spans,
-                keys = { sizedTiles[it].tile.spec },
-                modifier = modifier,
-            ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
-                val it = sizedTiles[spanIndex]
+            BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+                val colSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal)
+                val columnWidth =
+                    (with(LocalDensity.current) { constraints.maxWidth.toDp() }
+                        - colSpacing * (columns - 1)) / columns
+                val circleSize = rememberClassicTileIconSize() - 8.dp
+                val spideyEdgeInset =
+                    if (qsStyle == INFINITY_QS_STYLE_SPIDEY) {
+                        ((columnWidth - circleSize) / 2).coerceAtLeast(0.dp)
+                    } else {
+                        0.dp
+                    }
+                VerticalSpannedGrid(
+                    columns = columns,
+                    columnSpacing = colSpacing,
+                    rowSpacing = classicRowSpacing,
+                    spans = spans,
+                    keys = { sizedTiles[it].tile.spec },
+                    modifier = Modifier,
+                ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
+                    val it = sizedTiles[spanIndex]
+                    val iconOnly =
+                        (classicStyle && qsStyle != INFINITY_QS_STYLE_SPIDEY) ||
+                            iconTilesViewModel.isIconTile(it.tile.spec)
 
-                Element(it.tile.spec.toElementKey(), Modifier) {
-                    Tile(
-                        tile = it.tile,
-                        iconOnly = classicStyle || iconTilesViewModel.isIconTile(it.tile.spec),
-                        squishiness = { squishiness },
-                        tileHapticsViewModelFactory = tileHapticsViewModelFactory,
-                        coroutineScope = scope,
-                        bounceableInfo =
-                            bounceables.bounceableInfo(
-                                it,
-                                index = spanIndex,
-                                column = column,
-                                columns = columns,
-                                isFirstInRow = isFirstInColumn,
-                                isLastInRow = isLastInColumn,
-                            ),
-                        detailsViewModel = detailsViewModel,
-                        isVisible = listening,
-                        requestToggleTextFeedback = textFeedbackViewModel::requestShowFeedback,
-                        enableRevealEffect = enableRevealEffect,
-                    )
+                    Element(it.tile.spec.toElementKey(), Modifier) {
+                        Tile(
+                            tile = it.tile,
+                            iconOnly = iconOnly,
+                            capsuleEdgeInset =
+                                if (!iconOnly) spideyEdgeInset else 0.dp,
+                            squishiness = { squishiness },
+                            tileHapticsViewModelFactory = tileHapticsViewModelFactory,
+                            coroutineScope = scope,
+                            bounceableInfo =
+                                bounceables.bounceableInfo(
+                                    it,
+                                    index = spanIndex,
+                                    column = column,
+                                    columns = columns,
+                                    isFirstInRow = isFirstInColumn,
+                                    isLastInRow = isLastInColumn,
+                                ),
+                            detailsViewModel = detailsViewModel,
+                            isVisible = listening,
+                            requestToggleTextFeedback = textFeedbackViewModel::requestShowFeedback,
+                            enableRevealEffect = enableRevealEffect,
+                        )
+                    }
                 }
             }
         }

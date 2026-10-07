@@ -17,6 +17,9 @@
 package com.android.systemui.qs.panels.ui.compose.infinitegrid
 
 import android.content.Context
+import android.database.ContentObserver
+import android.os.UserHandle
+import android.provider.Settings
 import android.graphics.Matrix
 import android.graphics.Path
 import android.graphics.drawable.Animatable
@@ -34,6 +37,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -59,6 +63,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
@@ -76,10 +82,12 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -133,6 +141,7 @@ fun ClassicTileContent(
     iconShapeKey: String,
     colors: TileColors,
     labelHide: Boolean,
+    fillWidth: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val isNoBackground = iconShapeKey in QSTileIconShapes.NO_BACKGROUND_KEYS
@@ -158,16 +167,21 @@ fun ClassicTileContent(
 
     val classicIconSize = rememberClassicTileIconSize()
     val boxHeight = if (labelHide) classicIconSize else classicIconSize - 8.dp
-    val iconSize = boxHeight * 0.5f
 
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.fillMaxWidth(),
     ) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+        val boxSize = if (fillWidth) with(LocalDensity.current) { constraints.maxWidth.toDp() } else boxHeight
+        val iconSize = boxSize * 0.5f
         Box(
             modifier = Modifier
-                .size(boxHeight)
+                .size(boxSize)
                 .thenIf(!isNoBackground) {
                     Modifier
                         .clip(iconShape)
@@ -203,6 +217,7 @@ fun ClassicTileContent(
                 modifier = Modifier.align(Alignment.Center),
             )
         }
+        }
 
         if (!labelHide) {
             val animatedLabelColor by animateColorAsState(colors.classicLabel, label = "QSTileLabelColor")
@@ -211,8 +226,9 @@ fun ClassicTileContent(
             TileLabel(
                 text = label,
                 color = { animatedLabelColor },
+                maxLines = 2,
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontSize = (classicIconSize * 0.15625f).value.sp,
+                    fontSize = (classicIconSize * 0.14f).value.sp,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
                     hyphens = Hyphens.Auto,
@@ -254,6 +270,7 @@ fun LargeTileContent(
     textScale: () -> Float = { 1f },
     toggleClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    showIconBackground: Boolean = false,
 ) {
     val isDualTarget = toggleClick != null
     Row(
@@ -270,15 +287,17 @@ fun LargeTileContent(
             modifier =
                 Modifier.size(CommonTileDefaults.ToggleTargetSize).thenIf(isDualTarget) {
                     Modifier.borderOnFocus(color = focusBorderColor, iconShape.topEnd)
-                        .clip(iconShape)
-                        .drawBehind {
-                            val brush: Brush? = colors.iconBackgroundGradient
-                            if (brush != null) {
-                                drawRect(brush = brush)
-                            } else {
-                                drawRect(animatedBackgroundColor)
-                            }
+                }.thenIf(isDualTarget || showIconBackground) {
+                    Modifier.clip(iconShape).drawBehind {
+                        val brush: Brush? = colors.iconBackgroundGradient
+                        if (brush != null) {
+                            drawRect(brush = brush)
+                        } else {
+                            drawRect(animatedBackgroundColor)
                         }
+                    }
+                }.thenIf(isDualTarget) {
+                    Modifier
                         // apply the squish effect after the bg is drawn
                         .verticalSquish(squishiness)
                         .combinedClickable(
@@ -371,6 +390,58 @@ fun LargeTileLabels(
     }
 }
 
+private val QS_TILE_ICON_GLOW_RADIUS = 5.dp
+
+private const val QS_TILE_ICON_GLOW_SETTING = "qs_tile_icon_glow"
+
+private object QsTileIconGlowStore {
+    var enabled by mutableStateOf(true)
+        private set
+    private var initialized = false
+
+    fun ensureInitialized(context: android.content.Context) {
+        if (initialized) return
+        initialized = true
+        val contentResolver = context.applicationContext.contentResolver
+
+        fun readCurrent(): Boolean {
+            return runCatching {
+                Settings.System.getIntForUser(
+                    contentResolver,
+                    QS_TILE_ICON_GLOW_SETTING,
+                    1,
+                    UserHandle.USER_CURRENT,
+                )
+            }.getOrElse { 1 } != 0
+        }
+
+        enabled = readCurrent()
+
+        val observer = object : ContentObserver(null) {
+            override fun onChange(selfChange: Boolean) {
+                context.mainExecutor.execute { enabled = readCurrent() }
+            }
+        }
+
+        contentResolver.registerContentObserver(
+            Settings.System.getUriFor(QS_TILE_ICON_GLOW_SETTING),
+            false,
+            observer,
+            UserHandle.USER_ALL,
+        )
+    }
+}
+
+@Composable
+fun rememberQsTileIconGlow(): Boolean {
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        QsTileIconGlowStore.ensureInitialized(context)
+        onDispose {}
+    }
+    return QsTileIconGlowStore.enabled
+}
+
 @Composable
 fun SmallTileContent(
     iconProvider: Context.() -> Icon,
@@ -382,6 +453,15 @@ fun SmallTileContent(
     val context = LocalContext.current
     val icon = iconProvider(context)
     val animatedColor by animateColorAsState(color, label = "QSTileIconColor")
+    // Use the icon's tint to select a contrasting halo. Unbounded blur keeps
+    // glyphs with tight drawable bounds from clipping away the glow.
+    val glowEnabled = rememberQsTileIconGlow()
+    val glowColor =
+        if (animatedColor.luminance() > 0.5f) {
+            Color.White.copy(alpha = 0.6f)
+        } else {
+            Color.Black.copy(alpha = 0.6f)
+        }
     val sizeValue = size()
     val iconModifier =
         modifier
@@ -433,15 +513,60 @@ fun SmallTileContent(
                 }
             }
 
-        NonClippedImage(
-            painter = painter,
-            contentDescription = icon.contentDescription?.load(),
-            colorFilter = ColorFilter.tint(color = animatedColor),
-            modifier = iconModifier,
-            contentScale = ContentScale.Crop,
-        )
+        if (glowEnabled) {
+            Box(modifier = iconModifier) {
+                NonClippedImage(
+                    painter = painter,
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(color = glowColor),
+                    modifier =
+                        Modifier.matchParentSize()
+                            .blur(
+                                QS_TILE_ICON_GLOW_RADIUS,
+                                edgeTreatment = BlurredEdgeTreatment.Unbounded,
+                            ),
+                    contentScale = ContentScale.Crop,
+                )
+                NonClippedImage(
+                    painter = painter,
+                    contentDescription = icon.contentDescription?.load(),
+                    colorFilter = ColorFilter.tint(color = animatedColor),
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        } else {
+            NonClippedImage(
+                painter = painter,
+                contentDescription = icon.contentDescription?.load(),
+                colorFilter = ColorFilter.tint(color = animatedColor),
+                modifier = iconModifier,
+                contentScale = ContentScale.Crop,
+            )
+        }
     } else {
-        Icon(icon = icon, tint = animatedColor, modifier = iconModifier)
+        if (glowEnabled) {
+            val glowIcon =
+                when (icon) {
+                    is Icon.Loaded -> Icon.Loaded(icon.drawable, null)
+                    is Icon.Resource -> Icon.Resource(icon.resId, null)
+                }
+            Box(modifier = iconModifier) {
+                Icon(
+                    icon = glowIcon,
+                    tint = glowColor,
+                    modifier =
+                        Modifier.matchParentSize()
+                            .blur(
+                                QS_TILE_ICON_GLOW_RADIUS,
+                                edgeTreatment = BlurredEdgeTreatment.Unbounded,
+                            ),
+                )
+                Icon(icon = icon, tint = animatedColor, modifier = Modifier.matchParentSize())
+            }
+        } else {
+            Icon(icon = icon, tint = animatedColor, modifier = iconModifier)
+        }
     }
 }
 
@@ -451,6 +576,7 @@ private fun TileLabel(
     color: ColorProducer,
     style: TextStyle,
     modifier: Modifier = Modifier,
+    maxLines: Int = 1,
     isVisible: () -> Boolean = { true },
 ) {
     var textSize by remember { mutableIntStateOf(0) }
@@ -462,7 +588,7 @@ private fun TileLabel(
         text = text,
         color = color,
         style = style,
-        maxLines = 1,
+        maxLines = maxLines,
         onTextLayout = { textSize = it.size.width },
         modifier =
             modifier
