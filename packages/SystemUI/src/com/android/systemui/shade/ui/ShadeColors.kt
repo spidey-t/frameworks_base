@@ -21,6 +21,18 @@ import com.android.internal.graphics.ColorUtils
 import com.android.systemui.res.R
 
 object ShadeColors {
+    private const val QS_PANEL_COLOR_STYLE = "qs_panel_color_style"
+    private const val QS_PANEL_COLOR_TRANSPARENT = 2
+
+    @JvmStatic
+    fun isTransparentQsPanel(context: Context): Boolean =
+        android.provider.Settings.System.getIntForUser(
+            context.contentResolver,
+            QS_PANEL_COLOR_STYLE,
+            1,
+            android.os.UserHandle.USER_CURRENT,
+        ) == QS_PANEL_COLOR_TRANSPARENT
+
     /**
      * Calculate notification shade panel color.
      *
@@ -31,6 +43,9 @@ object ShadeColors {
      */
     @JvmStatic
     fun shadePanel(context: Context, blurSupported: Boolean, withScrim: Boolean): Int {
+        if (isTransparentQsPanel(context)) {
+            return android.graphics.Color.TRANSPARENT
+        }
         return if (blurSupported) {
             if (withScrim) {
                 ColorUtils.compositeColors(
@@ -47,6 +62,9 @@ object ShadeColors {
 
     @JvmStatic
     fun notificationScrim(context: Context, blurSupported: Boolean): Int {
+        if (isTransparentQsPanel(context)) {
+            return android.graphics.Color.TRANSPARENT
+        }
         return if (blurSupported) {
             notificationScrimStandard(context)
         } else {
@@ -76,7 +94,7 @@ object ShadeColors {
                 com.android.internal.R.color.customColorSurfaceEffect0,
                 context.theme,
             )
-        if (!composited) {
+        if (!composited || isTransparentQsPanel(context)) {
             // SplitShade (avoid adding the shade panel with scrim)
             return surfaceEffect0Color
         }

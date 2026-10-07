@@ -20,7 +20,11 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.app.WindowConfiguration
+import android.content.Context
+import android.database.ContentObserver
 import android.os.SystemClock
+import android.os.UserHandle
+import android.provider.Settings
 import android.util.IndentingPrintWriter
 import android.util.Log
 import android.util.MathUtils
@@ -51,6 +55,7 @@ import com.android.systemui.shade.ShadeExpansionChangeEvent
 import com.android.systemui.shade.ShadeExpansionListener
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.ui.ShadeColors
 import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.statusbar.phone.BiometricUnlockController.MODE_WAKE_AND_DISMISS
 import com.android.systemui.statusbar.phone.DozeParameters
@@ -89,6 +94,7 @@ constructor(
     private val focusedDisplayRepository: FocusedDisplayRepository,
     @Application private val applicationScope: CoroutineScope,
     private val desktopModeRepository: DesktopModeRepository,
+    @Application private val context: Context,
     dumpManager: DumpManager,
 ) : ShadeExpansionListener, Dumpable {
     companion object {
@@ -104,6 +110,10 @@ constructor(
         private const val PUSHBACK_SCALE_FOR_APP = 0.025f
 
         private const val TAG = "DepthController"
+
+        private const val KEY_QS_PANEL_COLOR_STYLE = "qs_panel_color_style"
+        private const val KEY_QS_PANEL_BLUR_STRENGTH = "qs_panel_blur_strength"
+        private const val DEFAULT_QS_PANEL_BLUR_STRENGTH = 60
     }
 
     private val shadeDisplayId = shadeDisplaysRepository.get().displayId
@@ -277,6 +287,24 @@ constructor(
         combinedBlur = max(combinedBlur, blurUtils.blurRadiusOfRatio(qsExpandedRatio))
         combinedBlur = max(combinedBlur, blurUtils.blurRadiusOfRatio(transitionToFullShadeProgress))
         var shadeRadius = max(combinedBlur, wakeAndUnlockBlurRadius)
+
+        if (ShadeColors.isTransparentQsPanel(context)) {
+            // Blur QS panel style: the blur radius is controlled by the user via the
+            // qs_panel_blur_strength setting instead of the default shade expansion curve.
+            val strength =
+                Settings.System.getIntForUser(
+                    context.contentResolver,
+                    KEY_QS_PANEL_BLUR_STRENGTH,
+                    DEFAULT_QS_PANEL_BLUR_STRENGTH,
+                    UserHandle.USER_CURRENT,
+                )
+            val ratio = MathUtils.constrain(strength / 100f, 0f, 1f)
+            val expansionRatio =
+                ShadeInterpolation.getNotificationScrimAlpha(
+                    if (shouldApplyShadeBlur()) shadeExpansion else 0f
+                )
+            shadeRadius = blurUtils.blurRadiusOfRatio(ratio * expansionRatio)
+        }
 
         if (areBlursDisabledForAppLaunch || blursDisabledForUnlock) {
             shadeRadius = 0f
@@ -515,6 +543,26 @@ constructor(
             }
         }
         initBlurListeners()
+        registerQsPanelBlurObserver()
+    }
+
+    private fun registerQsPanelBlurObserver() {
+        val observer =
+            object : ContentObserver(null) {
+                override fun onChange(selfChange: Boolean) {
+                    scheduleUpdate()
+                }
+            }
+        context.contentResolver.registerContentObserver(
+            Settings.System.getUriFor(KEY_QS_PANEL_COLOR_STYLE),
+            false,
+            observer,
+        )
+        context.contentResolver.registerContentObserver(
+            Settings.System.getUriFor(KEY_QS_PANEL_BLUR_STRENGTH),
+            false,
+            observer,
+        )
     }
 
     private fun initBlurListeners() {
