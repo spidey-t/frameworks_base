@@ -22,6 +22,7 @@ import android.animation.ValueAnimator;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -211,6 +212,11 @@ public class ScrimDrawable extends Drawable {
 
     @Override
     public void draw(@NonNull Canvas canvas) {
+        // A fully transparent color is requested: do not draw anything. Paint.setAlpha()
+        // below would otherwise turn the transparent color into opaque black.
+        if (Color.alpha(mMainColor) == 0) {
+            return;
+        }
         mPaint.setColor(mMainColor);
         mPaint.setAlpha(mAlpha);
         if (mConcaveInfo != null) {
