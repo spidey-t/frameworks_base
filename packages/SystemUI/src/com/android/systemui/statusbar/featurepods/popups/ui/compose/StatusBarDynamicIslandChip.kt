@@ -350,7 +350,10 @@ fun rememberDynamicIslandCutoutSpec(): DynamicIslandCutoutSpec {
                         DynamicIslandEmbeddedGapMinWidth,
                         DynamicIslandEmbeddedGapMaxWidth,
                     )
-            val horizontalOffsetDp = (topCutout.exactCenterX() - (rootWidthPx / 2f)).toDp()
+            val rawOffsetPx = topCutout.exactCenterX() - (rootWidthPx / 2f)
+            // Side cutouts shouldn't shift the dynamic island off center.
+            val isCenteredCutout = kotlin.math.abs(rawOffsetPx) < (rootWidthPx * 0.25f)
+            val horizontalOffsetDp = if (isCenteredCutout) rawOffsetPx.toDp() else 0.dp
             DynamicIslandCutoutSpec(
                 embeddedGapWidth = embeddedGapWidthDp,
                 horizontalOffset = horizontalOffsetDp,
