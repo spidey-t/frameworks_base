@@ -152,6 +152,7 @@ import com.android.systemui.qs.panels.shared.model.QSFragmentComposeClippingTabl
 import com.android.systemui.qs.panels.ui.compose.EditMode
 import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_INFINITY_X
 import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_OXYGENOS
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
 import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_STOCK
 import com.android.systemui.qs.panels.ui.compose.InfinityQSModule
 import com.android.systemui.qs.panels.ui.compose.QuickQuickSettings
@@ -766,7 +767,8 @@ constructor(
                 val showInfinityQqsModule =
                     !isQsSplitShadeEnabled &&
                         (qsStyle == INFINITY_QS_STYLE_INFINITY_X ||
-                            qsStyle == INFINITY_QS_STYLE_OXYGENOS)
+                            qsStyle == INFINITY_QS_STYLE_OXYGENOS ||
+                            qsStyle == INFINITY_QS_STYLE_SPIDEY)
                 val Media =
                     @Composable {
                         if (viewModel.qqsMediaVisible && showMediaPlayer) {

@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.systemui.res.R
 import com.android.systemui.gradient.rememberGradientColors
@@ -97,6 +98,7 @@ private fun rememberVolumeSliderGradientBrush(): Brush? {
 fun InfinityVolumeModule(
     modifier: Modifier = Modifier,
     capsuleStyle: Boolean = false,
+    capsuleRadius: Dp? = null,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -187,11 +189,18 @@ fun InfinityVolumeModule(
         }
     }
 
-    val trackBgColor = Color.White.copy(alpha = 0.18f)
-    val fillColor = Color.White.copy(alpha = 0.9f)
-    val fillGradient = rememberVolumeSliderGradientBrush()
-    val iconTint = Color(0xFF2C2C2E)
-    val sliderCornerRadius = if (capsuleStyle) SLIDER_CAPSULE_RADIUS else SLIDER_CORNER_RADIUS
+    val spideyPalette = capsuleRadius != null
+    val trackBgColor =
+        if (spideyPalette) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.18f)
+    val fillColor =
+        if (spideyPalette) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.9f)
+    val fillGradient = if (spideyPalette) null else rememberVolumeSliderGradientBrush()
+    val iconTint =
+        if (spideyPalette && currentFraction > 0.25f) MaterialTheme.colorScheme.onPrimary
+        else if (spideyPalette) MaterialTheme.colorScheme.onSurface
+        else Color(0xFF2C2C2E)
+    val sliderCornerRadius =
+        capsuleRadius ?: if (capsuleStyle) SLIDER_CAPSULE_RADIUS else SLIDER_CORNER_RADIUS
     val iconRes = if (volumeFraction <= 0.0001f) {
         R.drawable.ic_volume_media_mute
     } else {

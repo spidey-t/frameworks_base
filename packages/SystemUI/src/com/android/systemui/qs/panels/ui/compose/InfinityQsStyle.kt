@@ -20,13 +20,15 @@ const val INFINITY_QS_STYLE_STOCK = 0
 const val INFINITY_QS_STYLE_INFINITY_X = 1
 const val INFINITY_QS_STYLE_HYPEROS = 2
 const val INFINITY_QS_STYLE_OXYGENOS = 3
+const val INFINITY_QS_STYLE_SPIDEY = 4
 
 fun sanitizeInfinityQsStyle(value: Int): Int {
     return when (value) {
         INFINITY_QS_STYLE_STOCK,
         INFINITY_QS_STYLE_INFINITY_X,
         INFINITY_QS_STYLE_HYPEROS,
-        INFINITY_QS_STYLE_OXYGENOS -> value
+        INFINITY_QS_STYLE_OXYGENOS,
+        INFINITY_QS_STYLE_SPIDEY -> value
         else -> INFINITY_QS_STYLE_STOCK
     }
 }

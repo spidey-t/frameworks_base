@@ -17,13 +17,17 @@
 package com.android.systemui.qs.panels.ui.compose
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.animation.scene.ContentScope
@@ -37,6 +41,7 @@ import com.android.systemui.qs.panels.ui.compose.infinitegrid.Tile
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberCustomColorScheme
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberDualTargetTileStyle
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberQSPanelStyle
+import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberClassicTileIconSize
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberClassicTileRowSpacing
 import com.android.systemui.qs.panels.ui.viewmodel.BounceableTileViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.QuickQuickSettingsViewModel
@@ -55,6 +60,7 @@ fun ContentScope.QuickQuickSettings(
     val squishiness by viewModel.squishinessViewModel.squishiness.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val classicStyle = rememberQSPanelStyle()
+    val qsStyle = rememberInfinityQsStyle()
     val classicRowSpacing = if (classicStyle) rememberClassicTileRowSpacing() else dimensionResource(R.dimen.qs_tile_margin_vertical)
 
     Box(modifier = modifier) {
@@ -67,19 +73,34 @@ fun ContentScope.QuickQuickSettings(
             LocalCustomColorScheme provides rememberCustomColorScheme(),
             LocalDualTargetTileStyle provides rememberDualTargetTileStyle()
         ) {
-            VerticalSpannedGrid(
-                columns = columns,
-                columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal),
-                rowSpacing = classicRowSpacing,
-                spans = spans,
-                modifier = Modifier.sysuiResTag("qqs_tile_layout"),
-                keys = { sizedTiles[it].tile.spec },
-            ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
-                val it = sizedTiles[spanIndex]
-                Element(it.tile.spec.toElementKey(), Modifier) {
-                    Tile(
-                        tile = it.tile,
-                        iconOnly = classicStyle || it.isIcon,
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal)
+                val columnWidth =
+                    (with(LocalDensity.current) { constraints.maxWidth.toDp() }
+                        - columnSpacing * (columns - 1)) / columns
+                val spideyEdgeInset =
+                    if (qsStyle == INFINITY_QS_STYLE_SPIDEY) {
+                        ((columnWidth - (rememberClassicTileIconSize() - 8.dp)) / 2)
+                            .coerceAtLeast(0.dp)
+                    } else {
+                        0.dp
+                    }
+                VerticalSpannedGrid(
+                    columns = columns,
+                    columnSpacing = columnSpacing,
+                    rowSpacing = classicRowSpacing,
+                    spans = spans,
+                    modifier = Modifier.sysuiResTag("qqs_tile_layout"),
+                    keys = { sizedTiles[it].tile.spec },
+                ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
+                    val it = sizedTiles[spanIndex]
+                    val iconOnly =
+                        (classicStyle && qsStyle != INFINITY_QS_STYLE_SPIDEY) || it.isIcon
+                    Element(it.tile.spec.toElementKey(), Modifier) {
+                        Tile(
+                            tile = it.tile,
+                            iconOnly = iconOnly,
+                            capsuleEdgeInset = if (!iconOnly) spideyEdgeInset else 0.dp,
                         squishiness = { squishiness },
                         coroutineScope = scope,
                         bounceableInfo =
@@ -97,6 +118,7 @@ fun ContentScope.QuickQuickSettings(
                         isVisible = listening,
                     )
                 }
+            }
             }
         }
     }

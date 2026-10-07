@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.systemui.res.R
 import com.android.systemui.gradient.rememberGradientColors
@@ -105,6 +106,7 @@ private fun rememberBrightnessSliderGradientBrush(): Brush? {
 fun InfinityBrightnessModule(
     modifier: Modifier = Modifier,
     capsuleStyle: Boolean = false,
+    capsuleRadius: Dp? = null,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -190,11 +192,18 @@ fun InfinityBrightnessModule(
         onDispose { cr.unregisterContentObserver(observer) }
     }
 
-    val trackBgColor = Color.White.copy(alpha = 0.18f)
-    val fillColor = Color.White.copy(alpha = 0.9f)
-    val fillGradient = rememberBrightnessSliderGradientBrush()
-    val iconTint = Color(0xFF2C2C2E)
-    val sliderCornerRadius = if (capsuleStyle) SLIDER_CAPSULE_RADIUS else SLIDER_CORNER_RADIUS
+    val spideyPalette = capsuleRadius != null
+    val trackBgColor =
+        if (spideyPalette) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.18f)
+    val fillColor =
+        if (spideyPalette) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.9f)
+    val fillGradient = if (spideyPalette) null else rememberBrightnessSliderGradientBrush()
+    val iconTint =
+        if (spideyPalette && currentFraction > 0.25f) MaterialTheme.colorScheme.onPrimary
+        else if (spideyPalette) MaterialTheme.colorScheme.onSurface
+        else Color(0xFF2C2C2E)
+    val sliderCornerRadius =
+        capsuleRadius ?: if (capsuleStyle) SLIDER_CAPSULE_RADIUS else SLIDER_CORNER_RADIUS
     val iconRes = if (autoMode) R.drawable.ic_qs_brightness_auto_on
                   else          R.drawable.ic_qs_brightness_auto_off
 
