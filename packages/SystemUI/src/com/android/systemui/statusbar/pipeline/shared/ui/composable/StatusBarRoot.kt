@@ -337,6 +337,9 @@ fun StatusBarRoot(
                             )
                         }
                     }
+                centeredArea.clipChildren = false
+                centeredArea.clipToPadding = false
+                centeredArea.visibility = View.VISIBLE
                 centeredArea.addView(composeView)
 
                 // If the flag is enabled, create and add a compose section to the end
