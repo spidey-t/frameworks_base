@@ -32,8 +32,10 @@ import android.animation.ValueAnimator;
 import android.annotation.IntDef;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.database.ContentObserver;
 import android.graphics.Color;
 import android.os.Handler;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.MathUtils;
 import android.util.Pair;
@@ -220,6 +222,9 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private static final int TAG_END_ALPHA = R.id.scrim_alpha_end;
     private static final float NOT_INITIALIZED = -1;
 
+    /** Dim level drawn over the blurred background for the "Blur" QS panel style. */
+    private static final float BLUR_QS_PANEL_DIM = 0.3f;
+
     private ScrimState mState = ScrimState.UNINITIALIZED;
 
     private final Context mContext;
@@ -282,6 +287,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private Callback mCallback;
     private boolean mScreenOn;
     private boolean mTransparentScrimBackground;
+    private boolean mQsPanelColorObserverRegistered;
 
     // Scrim blanking callbacks
     private Runnable mPendingFrameCallback;
@@ -454,6 +460,20 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         mScrimBehind = behindScrim;
         mScrimInFront = scrimInFront;
         updateThemeColors();
+        if (!mQsPanelColorObserverRegistered) {
+            mQsPanelColorObserverRegistered = true;
+            ContentObserver observer = new ContentObserver(mHandler) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    updateThemeColors();
+                    mState.prepare(mState);
+                    applyAndDispatchState();
+                }
+            };
+            mContext.getContentResolver().registerContentObserver(
+                    Settings.System.getUriFor("qs_panel_color_style"),
+                    false /* notifyForDescendants */, observer);
+        }
         mNotificationsScrim.setScrimName(getScrimName(mNotificationsScrim));
         mScrimBehind.setScrimName(getScrimName(mScrimBehind));
         mScrimInFront.setScrimName(getScrimName(mScrimInFront));
@@ -1064,6 +1084,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                 if (mTransparentScrimBackground) {
                     mBehindAlpha = 0;
                     mNotificationsAlpha = 0;
+                } else if (ShadeColors.isTransparentQsPanel(mContext)) {
+                    // Blur QS panel style: the shade window applies a background blur
+                    // (see NotificationShadeWindowControllerImpl), and a moderate dim is
+                    // drawn over it here so the content stays readable.
+                    mBehindAlpha = BLUR_QS_PANEL_DIM * mPanelExpansionFraction;
+                    mNotificationsAlpha = 0;
                 } else if (mClipsQsScrim) {
                     float behindFraction = getInterpolatedFraction();
                     behindFraction = (float) Math.pow(behindFraction, 0.8f);
@@ -1161,6 +1187,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             if (mKeyguardOccluded || hideNotificationScrim) {
                 mNotificationsAlpha = 0;
             }
+        }
+        if (mState == ScrimState.SHADE_LOCKED && ShadeColors.isTransparentQsPanel(mContext)) {
+            // Apply the dim over the blurred background when the shade is expanded over
+            // the lockscreen as well.
+            mBehindAlpha = BLUR_QS_PANEL_DIM;
+            mNotificationsAlpha = 0;
         }
         if (mState != ScrimState.UNLOCKED) {
             mAnimatingPanelExpansionOnUnlock = false;
