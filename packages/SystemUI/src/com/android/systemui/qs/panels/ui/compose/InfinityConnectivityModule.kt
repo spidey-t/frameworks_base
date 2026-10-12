@@ -21,6 +21,7 @@ import android.text.TextUtils
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -441,8 +442,10 @@ private fun InfinityConnectivityTile(
 ) {
     val qsTileGradientEnabled = rememberGradientEnabled(Settings.System.QS_TILE_GRADIENT)
     val onDarkChip = capsuleRadius != null
+    val spideyDarkMode = onDarkChip && isSystemInDarkTheme()
     val bg =
-        if (onDarkChip) Color.Black.copy(alpha = 0.3f)
+        if (onDarkChip && spideyDarkMode) LocalAndroidColorScheme.current.surfaceEffect1
+        else if (onDarkChip) Color.Black.copy(alpha = 0.3f)
         else if (enabled) MaterialTheme.colorScheme.primary else TILE_INACTIVE
     val iconTint =
         if (onDarkChip && enabled) MaterialTheme.colorScheme.onPrimary
@@ -480,6 +483,7 @@ private fun InfinityConnectivityTile(
                     .clip(CircleShape)
                     .background(
                         if (enabled) MaterialTheme.colorScheme.primary
+                        else if (spideyDarkMode) LocalAndroidColorScheme.current.surfaceEffect0
                         else LocalAndroidColorScheme.current.surfaceEffect2
                     ),
                 contentAlignment = Alignment.Center,
