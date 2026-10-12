@@ -202,13 +202,19 @@ fun ContentScope.Tile(
 
         val qsStyle = rememberInfinityQsStyle()
         val isSpideyStyle = qsStyle == INFINITY_QS_STYLE_SPIDEY
+        val isSpideyDarkMode = isSpideyStyle && isSystemInDarkTheme()
         val tileGradientRaw = rememberQSTileGradient()
         val tileGradient = if (isSpideyStyle) null else tileGradientRaw
         val colors =
             run {
                 val base = TileDefaults.getColorForState(uiState, iconOnly, tileGradient)
                 if (isSpideyStyle) {
-                    val glassBase = Color.Black.copy(alpha = 0.3f)
+                    val glassBase =
+                        if (isSpideyDarkMode) LocalAndroidColorScheme.current.surfaceEffect1
+                        else Color.Black.copy(alpha = 0.3f)
+                    val inactiveIconBackground =
+                        if (isSpideyDarkMode) LocalAndroidColorScheme.current.surfaceEffect0
+                        else LocalAndroidColorScheme.current.surfaceEffect2
                     base.copy(
                         background =
                             if (iconOnly && uiState.visualState == STATE_ACTIVE) {
@@ -222,7 +228,7 @@ fun ContentScope.Tile(
                             } else if (uiState.visualState == STATE_ACTIVE) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                LocalAndroidColorScheme.current.surfaceEffect2
+                                inactiveIconBackground
                             },
                         label = if (iconOnly) base.label else MaterialTheme.colorScheme.onSurface,
                         secondaryLabel =

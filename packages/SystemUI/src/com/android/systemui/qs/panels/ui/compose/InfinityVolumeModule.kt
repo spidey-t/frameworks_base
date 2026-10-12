@@ -22,6 +22,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,6 +54,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.systemui.res.R
 import com.android.systemui.gradient.rememberGradientColors
 import com.android.systemui.gradient.rememberGradientEnabled
@@ -190,8 +192,11 @@ fun InfinityVolumeModule(
     }
 
     val spideyPalette = capsuleRadius != null
+    val spideyDarkMode = spideyPalette && isSystemInDarkTheme()
     val trackBgColor =
-        if (spideyPalette) Color.Black.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.18f)
+        if (spideyDarkMode) LocalAndroidColorScheme.current.surfaceEffect1
+        else if (spideyPalette) Color.Black.copy(alpha = 0.3f)
+        else Color.White.copy(alpha = 0.18f)
     val fillColor =
         if (spideyPalette) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.9f)
     val fillGradient = if (spideyPalette) null else rememberVolumeSliderGradientBrush()
