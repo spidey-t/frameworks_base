@@ -86,7 +86,7 @@ private object InfinityOxygenRightPaneState {
 private fun InfinityQSModuleContent(style: Int, quickQsMode: Boolean) {
     val contentHeight = if (quickQsMode) 144.dp else 160.dp
     val connectivityHeight = if (quickQsMode) 76.dp else 84.dp
-    
+
     val showConnectivity = style != INFINITY_QS_STYLE_INFINITY_X
     val oxygenStyle =
         style == INFINITY_QS_STYLE_OXYGENOS || style == INFINITY_QS_STYLE_SPIDEY
