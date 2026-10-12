@@ -22,7 +22,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -192,10 +191,8 @@ fun InfinityVolumeModule(
     }
 
     val spideyPalette = capsuleRadius != null
-    val spideyDarkMode = spideyPalette && isSystemInDarkTheme()
     val trackBgColor =
-        if (spideyDarkMode) LocalAndroidColorScheme.current.surfaceEffect1
-        else if (spideyPalette) Color.Black.copy(alpha = 0.3f)
+        if (spideyPalette) LocalAndroidColorScheme.current.surfaceEffect1
         else Color.White.copy(alpha = 0.18f)
     val fillColor =
         if (spideyPalette) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.9f)
