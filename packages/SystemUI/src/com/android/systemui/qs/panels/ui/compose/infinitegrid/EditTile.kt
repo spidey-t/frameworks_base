@@ -1301,6 +1301,7 @@ fun EditTile(
     progress: () -> Float,
     colors: TileColors = EditModeTileDefaults.editTileColors(),
 ) {
+    val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
     val defaultStartPadding = CommonTileDefaults.StartPadding
     val iconSizeDiff = CommonTileDefaults.SmallTileIconSize - CommonTileDefaults.LargeTileIconSize
     val toggleTargetSize = ToggleTargetSize
@@ -1352,7 +1353,7 @@ fun EditTile(
         Box(
             Modifier.size(ToggleTargetSize)
                 .let {
-                    if (tile.isDualTarget) {
+                    if (tile.isDualTarget || (isSpideyStyle && progress() > 0f)) {
                         it.tileBackground(
                             cornerRadius = InactiveTileCornerRadius,
                             alpha = { progress() },
@@ -1413,7 +1414,12 @@ private fun Modifier.tileBackground(
 ): Modifier {
     val panelStyle = rememberQSPanelStyle()
     val shapeMode = rememberTileShapeMode()
-    return if (panelStyle || (shapeMode == 4 && iconOnly)) {
+    val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
+    return if (isSpideyStyle && !iconOnly) {
+        clip(RoundedCornerShape(percent = 50)).drawBehind {
+            drawRect(color(), alpha = alpha())
+        }
+    } else if (panelStyle || (shapeMode == 4 && iconOnly)) {
         // Draw a centered circle that fits the tile's min dimension
         drawBehind {
             val border = 0f
@@ -1477,10 +1483,13 @@ private object EditModeTileDefaults {
         )
 
     @Composable
-    fun editTileColors(): TileColors =
-        TileColors(
+    fun editTileColors(): TileColors {
+        val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
+        return TileColors(
             background = LocalAndroidColorScheme.current.surfaceEffect1,
-            iconBackground = LocalAndroidColorScheme.current.surfaceEffect2,
+            iconBackground =
+                if (isSpideyStyle) LocalAndroidColorScheme.current.surfaceEffect0
+                else LocalAndroidColorScheme.current.surfaceEffect2,
             label = MaterialTheme.colorScheme.onSurface,
             secondaryLabel = MaterialTheme.colorScheme.onSurface,
             icon = MaterialTheme.colorScheme.onSurface,
@@ -1488,6 +1497,7 @@ private object EditModeTileDefaults {
             classicLabel = MaterialTheme.colorScheme.onSurface.copy(alpha = .9f),
             classicSecondaryLabel = MaterialTheme.colorScheme.onSurface.copy(alpha = .8f),
         )
+    }
 }
 
 private const val EDIT_MODE_ROOT_TEST_TAG = "EditModeRoot"

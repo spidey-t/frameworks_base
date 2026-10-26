@@ -139,9 +139,7 @@ private fun InfinityQSModuleContent(style: Int, quickQsMode: Boolean) {
                         contentAlignment = Alignment.BottomStart,
                     ) {
                         InfinityMediaPanel(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(minOf(spideyPaneHeight, 100.dp)),
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
                     Box(
