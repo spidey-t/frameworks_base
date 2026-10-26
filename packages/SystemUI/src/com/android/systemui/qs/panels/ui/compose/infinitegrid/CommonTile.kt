@@ -395,7 +395,7 @@ private val QS_TILE_ICON_GLOW_RADIUS = 5.dp
 private const val QS_TILE_ICON_GLOW_SETTING = "qs_tile_icon_glow"
 
 private object QsTileIconGlowStore {
-    var enabled by mutableStateOf(true)
+    var enabled by mutableStateOf(false)
         private set
     private var initialized = false
 
@@ -409,10 +409,10 @@ private object QsTileIconGlowStore {
                 Settings.System.getIntForUser(
                     contentResolver,
                     QS_TILE_ICON_GLOW_SETTING,
-                    1,
+                    0,
                     UserHandle.USER_CURRENT,
                 )
-            }.getOrElse { 1 } != 0
+            }.getOrElse { 0 } != 0
         }
 
         enabled = readCurrent()
