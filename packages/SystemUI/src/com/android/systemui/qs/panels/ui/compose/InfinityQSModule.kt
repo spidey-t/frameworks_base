@@ -132,11 +132,18 @@ private fun InfinityQSModuleContent(style: Int, quickQsMode: Boolean) {
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    InfinityMediaPanel(
+                    Box(
                         modifier = Modifier
                             .width(columnWidth * 2 + 8.dp)
                             .fillMaxHeight(),
-                    )
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        InfinityMediaPanel(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(minOf(spideyPaneHeight, 100.dp)),
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .width(columnWidth)
