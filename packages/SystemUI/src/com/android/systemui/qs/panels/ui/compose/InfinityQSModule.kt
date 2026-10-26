@@ -132,14 +132,10 @@ private fun InfinityQSModuleContent(style: Int, quickQsMode: Boolean) {
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    InfinityConnectivityModule(
+                    InfinityMediaPanel(
                         modifier = Modifier
                             .width(columnWidth * 2 + 8.dp)
-                            .padding(horizontal = edgeInset)
                             .fillMaxHeight(),
-                        stackMobileBelowWifi = true,
-                        capsuleStyle = true,
-                        capsuleRadius = spideyRadius,
                     )
                     Box(
                         modifier = Modifier
