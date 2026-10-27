@@ -116,6 +116,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -934,8 +935,6 @@ private fun LazyGridItemScope.TileGridCell(
     val tileState by rememberTileState(cell.tile, selectionState)
     val resizingState = rememberResizingState(cell.tile.tileSpec, cell.isIcon)
     val panelStyle = rememberQSPanelStyle()
-    val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
-    val spideyIconCircleSize = rememberClassicTileIconSize() - 8.dp
     val panelProgressBlocked =
         panelStyle && rememberInfinityQsStyle() != INFINITY_QS_STYLE_SPIDEY
     val progress: () -> Float = {
@@ -1015,34 +1014,15 @@ private fun LazyGridItemScope.TileGridCell(
         selectionState.unSelect()
         onRemoveTile(cell.tile.tileSpec)
     }
-    val tileModifier =
-        modifier
-            .height(TileHeight)
-            .fillMaxWidth()
-            .thenIf(isSpideyStyle && !cell.isIcon) {
-                Modifier.layout { measurable, constraints ->
-                    val span = cell.width.coerceAtLeast(1)
-                    val spacing = TileArrangementPadding.roundToPx()
-                    val columnWidth =
-                        (constraints.maxWidth - spacing * (span - 1)) / span
-                    val edgeInset =
-                        ((columnWidth - spideyIconCircleSize.roundToPx()) / 2).coerceAtLeast(0)
-                    val contentWidth = (constraints.maxWidth - edgeInset * 2).coerceAtLeast(0)
-                    val placeable =
-                        measurable.measure(
-                            constraints.copy(minWidth = contentWidth, maxWidth = contentWidth)
-                        )
-                    layout(constraints.maxWidth, placeable.height) {
-                        placeable.placeRelative(edgeInset, 0)
-                    }
-                }
-            }
-            .animateItem(placementSpec = placementSpec)
-            .tileTestTag(cell.isIcon)
     InteractiveTileContainer(
         tileState = tileState,
         resizingState = resizingState,
-        modifier = tileModifier,
+        modifier =
+            modifier
+                .height(TileHeight)
+                .fillMaxWidth()
+                .animateItem(placementSpec = placementSpec)
+                .tileTestTag(cell.isIcon),
         onClick = {
             if (tileState == TileState.Removable) {
                 removeTile()
@@ -1436,9 +1416,19 @@ private fun Modifier.tileBackground(
     val panelStyle = rememberQSPanelStyle()
     val shapeMode = rememberTileShapeMode()
     val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
+    val spideyIconCircleSize = rememberClassicTileIconSize() - 8.dp
     return if (isSpideyStyle && !iconOnly) {
-        clip(RoundedCornerShape(percent = 50)).drawBehind {
-            drawRect(color(), alpha = alpha())
+        drawBehind {
+            val columnWidth = (size.width - TileArrangementPadding.toPx()) / 2f
+            val edgeInset =
+                ((columnWidth - spideyIconCircleSize.toPx()) / 2f).coerceAtLeast(0f)
+            drawRoundRect(
+                color = color(),
+                topLeft = Offset(edgeInset, 0f),
+                size = Size((size.width - edgeInset * 2).coerceAtLeast(0f), size.height),
+                cornerRadius = CornerRadius(size.height / 2f),
+                alpha = alpha(),
+            )
         }
     } else if (panelStyle || (shapeMode == 4 && iconOnly)) {
         // Draw a centered circle that fits the tile's min dimension

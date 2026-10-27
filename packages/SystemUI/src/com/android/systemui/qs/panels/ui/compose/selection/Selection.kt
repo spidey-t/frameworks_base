@@ -84,8 +84,10 @@ import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
 import com.android.systemui.qs.panels.ui.compose.rememberInfinityQsStyle
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.ActiveTileCornerRadius
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.InactiveTileCornerRadius
+import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.TileArrangementPadding
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberQSPanelStyle
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberTileShapeMode
+import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberClassicTileIconSize
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BADGE_ANGLE_RAD
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BadgeIconSize
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BadgeSize
@@ -232,6 +234,7 @@ private fun Modifier.selectionBorder(
     val panelStyle = rememberQSPanelStyle()
     val spideyWideTile =
         rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY && !iconOnly
+    val spideyIconCircleSize = rememberClassicTileIconSize() - 8.dp
     val borderRadiusPx = with(LocalDensity.current) {
         when (shapeMode) {
             1 -> InactiveTileCornerRadius.toPx()
@@ -256,12 +259,23 @@ private fun Modifier.selectionBorder(
             )
         } else {
             // Draw the border on the inside of the tile
+            val edgeInset =
+                if (spideyWideTile) {
+                    val columnWidth = (size.width - TileArrangementPadding.toPx()) / 2f
+                    ((columnWidth - spideyIconCircleSize.toPx()) / 2f).coerceAtLeast(0f)
+                } else {
+                    0f
+                }
             drawRoundRect(
                 SolidColor(selectionColor),
                 cornerRadius =
                     CornerRadius(if (spideyWideTile) size.height / 2f else borderRadiusPx),
-                topLeft = Offset(borderWidth / 2, borderWidth / 2),
-                size = Size(size.width - borderWidth, size.height - borderWidth),
+                topLeft = Offset(edgeInset + borderWidth / 2, borderWidth / 2),
+                size =
+                    Size(
+                        size.width - edgeInset * 2 - borderWidth,
+                        size.height - borderWidth,
+                    ),
                 style = Stroke(borderWidth),
                 alpha = selectionAlpha(),
             )
