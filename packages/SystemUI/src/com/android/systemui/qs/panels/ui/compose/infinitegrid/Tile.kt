@@ -1301,13 +1301,13 @@ object DualTargetTileStyleProvider {
 @Composable
 internal fun rememberClassicTileIconSize(): Dp {
     val context = LocalContext.current.applicationContext
-    val state = remember { mutableStateOf(68) }
+    val state = remember { mutableStateOf(76) }
     DisposableEffect(context) {
         val contentResolver = context.contentResolver
         val observer = object : ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
             override fun onChange(selfChange: Boolean) {
                 state.value = Settings.System.getIntForUser(
-                    contentResolver, Settings.System.QS_CLASSIC_TILE_ICON_SIZE, 68,
+                    contentResolver, Settings.System.QS_CLASSIC_TILE_ICON_SIZE, 76,
                     UserHandle.USER_CURRENT
                 )
             }
@@ -1317,7 +1317,7 @@ internal fun rememberClassicTileIconSize(): Dp {
             false, observer, UserHandle.USER_ALL
         )
         state.value = Settings.System.getIntForUser(
-            contentResolver, Settings.System.QS_CLASSIC_TILE_ICON_SIZE, 68,
+            contentResolver, Settings.System.QS_CLASSIC_TILE_ICON_SIZE, 76,
             UserHandle.USER_CURRENT
         )
         onDispose { contentResolver.unregisterContentObserver(observer) }
