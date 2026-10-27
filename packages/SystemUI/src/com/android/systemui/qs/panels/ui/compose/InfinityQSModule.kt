@@ -135,6 +135,7 @@ private fun InfinityQSModuleContent(style: Int, quickQsMode: Boolean) {
                     InfinityMediaPanel(
                         modifier = Modifier
                             .width(columnWidth * 2 + 8.dp)
+                            .padding(horizontal = edgeInset)
                             .height(spideyPaneHeight),
                     )
                     Box(
