@@ -638,57 +638,57 @@ private fun CurrentTilesGrid(
         val editCapsuleInset = ((editCapsuleWidth - liveCapsuleWidth) / 2).coerceAtLeast(0.dp)
 
         TileLazyGrid(
-        state = gridState,
-        columns = GridCells.Fixed(listState.columns),
-        contentPadding = PaddingValues(CurrentTilesGridPadding),
-        modifier =
-            Modifier.fillMaxWidth()
-                .height { totalHeight.roundToPx() }
-                .border(
-                    width = 2.dp,
-                    color = primaryColor,
-                    shape = RoundedCornerShape(GridBackgroundCornerRadius),
-                )
-                .dragAndDropTileList(gridState, { gridContentOffset }, listState) { spec ->
-                    onEditAction(EditAction.SetTiles(currentListState.tileSpecs()))
-                    selectionState.select(spec)
-                }
-                .onGloballyPositioned { coordinates ->
-                    gridContentOffset = coordinates.positionInRoot()
-                }
-                .drawBehind {
-                    drawRoundRect(
-                        primaryColor,
-                        cornerRadius = CornerRadius(GridBackgroundCornerRadius.toPx()),
-                        alpha = .15f,
+            state = gridState,
+            columns = GridCells.Fixed(listState.columns),
+            contentPadding = PaddingValues(CurrentTilesGridPadding),
+            modifier =
+                Modifier.fillMaxWidth()
+                    .height { totalHeight.roundToPx() }
+                    .border(
+                        width = 2.dp,
+                        color = primaryColor,
+                        shape = RoundedCornerShape(GridBackgroundCornerRadius),
                     )
-                }
-                .sysuiResTag(CURRENT_TILES_GRID_TEST_TAG),
-    ) {
-        EditTiles(
-            listState = listState,
-            selectionState = selectionState,
-            gridState = gridState,
-            coroutineScope = coroutineScope,
-            onRemoveTile = { onEditAction(EditAction.RemoveTile(it)) },
-            spideyCapsuleInset = editCapsuleInset,
-        ) { resizingOperation ->
-            when (resizingOperation) {
-                is TemporaryResizeOperation -> {
-                    currentListState.resizeTile(resizingOperation.spec, resizingOperation.toIcon)
-                }
-                is FinalResizeOperation -> {
-                    with(resizingOperation) {
-                        // Commit the new size of the tile IF the size changed. Do this check before
-                        // a snapshot is taken to avoid saving an unnecessary snapshot
-                        val isIcon = spec !in listState.largeTilesSpecs
-                        if (isIcon != toIcon) {
-                            onEditAction(EditAction.ResizeTile(spec, toIcon))
+                    .dragAndDropTileList(gridState, { gridContentOffset }, listState) { spec ->
+                        onEditAction(EditAction.SetTiles(currentListState.tileSpecs()))
+                        selectionState.select(spec)
+                    }
+                    .onGloballyPositioned { coordinates ->
+                        gridContentOffset = coordinates.positionInRoot()
+                    }
+                    .drawBehind {
+                        drawRoundRect(
+                            primaryColor,
+                            cornerRadius = CornerRadius(GridBackgroundCornerRadius.toPx()),
+                            alpha = .15f,
+                        )
+                    }
+                    .sysuiResTag(CURRENT_TILES_GRID_TEST_TAG),
+        ) {
+            EditTiles(
+                listState = listState,
+                selectionState = selectionState,
+                gridState = gridState,
+                coroutineScope = coroutineScope,
+                onRemoveTile = { onEditAction(EditAction.RemoveTile(it)) },
+                spideyCapsuleInset = editCapsuleInset,
+            ) { resizingOperation ->
+                when (resizingOperation) {
+                    is TemporaryResizeOperation -> {
+                        currentListState.resizeTile(resizingOperation.spec, resizingOperation.toIcon)
+                    }
+                    is FinalResizeOperation -> {
+                        with(resizingOperation) {
+                            // Commit the new size of the tile IF the size changed. Do this check before
+                            // a snapshot is taken to avoid saving an unnecessary snapshot
+                            val isIcon = spec !in listState.largeTilesSpecs
+                            if (isIcon != toIcon) {
+                                onEditAction(EditAction.ResizeTile(spec, toIcon))
+                            }
                         }
                     }
                 }
             }
-        }
         }
     }
 }
@@ -1121,21 +1121,27 @@ private fun LazyGridItemScope.TileGridCell(
                     MaterialTheme.colorScheme.secondary,
                     CornerSize(InactiveTileCornerRadius),
                 )
-                .thenIf(isSelectable) { draggableModifier }
-                .tileBackground(
-                    cornerRadius = InactiveTileCornerRadius,
-                    alpha = { containerAlpha },
-                    color = { colors.background },
-                    iconOnly = cell.isIcon,
-                    horizontalInset =
-                        if (isSpideyStyle && !cell.isIcon) spideyCapsuleInset else 0.dp,
-                )
                 .keyboardShortcuts(cell.tile.tileSpec, selectionState) {
                     onResize(FinalResizeOperation(cell.tile.tileSpec, !cell.isIcon))
                 }
                 .thenIf(isSelectable) { selectableModifier }
         ) {
-            EditTile(tile = cell.tile, state = resizingState, progress = progress)
+            Box(
+                Modifier.fillMaxSize()
+                    .padding(
+                        horizontal =
+                            if (isSpideyStyle && !cell.isIcon) spideyCapsuleInset else 0.dp
+                    )
+                    .tileBackground(
+                        cornerRadius = InactiveTileCornerRadius,
+                        alpha = { containerAlpha },
+                        color = { colors.background },
+                        iconOnly = cell.isIcon,
+                    )
+                    .thenIf(isSelectable) { draggableModifier }
+            ) {
+                EditTile(tile = cell.tile, state = resizingState, progress = progress)
+            }
         }
     }
 }
