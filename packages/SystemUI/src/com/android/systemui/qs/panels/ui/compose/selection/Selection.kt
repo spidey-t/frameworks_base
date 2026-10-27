@@ -84,10 +84,8 @@ import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
 import com.android.systemui.qs.panels.ui.compose.rememberInfinityQsStyle
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.ActiveTileCornerRadius
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.InactiveTileCornerRadius
-import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.TileArrangementPadding
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberQSPanelStyle
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberTileShapeMode
-import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberClassicTileIconSize
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BADGE_ANGLE_RAD
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BadgeIconSize
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BadgeSize
@@ -128,6 +126,7 @@ fun InteractiveTileContainer(
     onClick: () -> Unit = {},
     contentDescription: String? = null,
     iconOnly: Boolean,
+    selectionHorizontalInset: Dp = 0.dp,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val transition: Transition<Decoration> = updateTransition(tileState.decoration())
@@ -148,6 +147,7 @@ fun InteractiveTileContainer(
             selectionBorderWidth = SelectedBorderWidth,
             cornerRadius = InactiveTileCornerRadius,
             iconOnly = iconOnly,
+            horizontalInset = selectionHorizontalInset,
         ) {
             selectionBorderAlpha
         }
@@ -228,13 +228,13 @@ private fun Modifier.selectionBorder(
     selectionBorderWidth: Dp,
     cornerRadius: Dp,
     iconOnly: Boolean,
+    horizontalInset: Dp,
     selectionAlpha: () -> Float = { 0f },
 ): Modifier {
     val shapeMode = rememberTileShapeMode()
     val panelStyle = rememberQSPanelStyle()
     val spideyWideTile =
         rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY && !iconOnly
-    val spideyIconCircleSize = rememberClassicTileIconSize() - 8.dp
     val borderRadiusPx = with(LocalDensity.current) {
         when (shapeMode) {
             1 -> InactiveTileCornerRadius.toPx()
@@ -259,13 +259,7 @@ private fun Modifier.selectionBorder(
             )
         } else {
             // Draw the border on the inside of the tile
-            val edgeInset =
-                if (spideyWideTile) {
-                    val columnWidth = (size.width - TileArrangementPadding.toPx()) / 2f
-                    ((columnWidth - spideyIconCircleSize.toPx()) / 2f).coerceAtLeast(0f)
-                } else {
-                    0f
-                }
+            val edgeInset = if (spideyWideTile) horizontalInset.toPx() else 0f
             drawRoundRect(
                 SolidColor(selectionColor),
                 cornerRadius =

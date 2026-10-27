@@ -48,6 +48,7 @@ import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -621,7 +622,22 @@ private fun CurrentTilesGrid(
     val coroutineScope = rememberCoroutineScope()
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    TileLazyGrid(
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val qsColumnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal)
+        val liveColumnWidth =
+            (maxWidth - qsColumnSpacing * (listState.columns - 1)) / listState.columns
+        val liveIconCircleSize = rememberClassicTileIconSize() - 8.dp
+        val liveCapsuleInset =
+            ((liveColumnWidth - liveIconCircleSize) / 2).coerceAtLeast(0.dp)
+        val liveCapsuleWidth =
+            liveColumnWidth * 2 + qsColumnSpacing - liveCapsuleInset * 2
+        val editColumnWidth =
+            (maxWidth - CurrentTilesGridPadding * 2 -
+                TileArrangementPadding * (listState.columns - 1)) / listState.columns
+        val editCapsuleWidth = editColumnWidth * 2 + TileArrangementPadding
+        val editCapsuleInset = ((editCapsuleWidth - liveCapsuleWidth) / 2).coerceAtLeast(0.dp)
+
+        TileLazyGrid(
         state = gridState,
         columns = GridCells.Fixed(listState.columns),
         contentPadding = PaddingValues(CurrentTilesGridPadding),
@@ -655,6 +671,7 @@ private fun CurrentTilesGrid(
             gridState = gridState,
             coroutineScope = coroutineScope,
             onRemoveTile = { onEditAction(EditAction.RemoveTile(it)) },
+            spideyCapsuleInset = editCapsuleInset,
         ) { resizingOperation ->
             when (resizingOperation) {
                 is TemporaryResizeOperation -> {
@@ -671,6 +688,7 @@ private fun CurrentTilesGrid(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -859,6 +877,7 @@ fun LazyGridScope.EditTiles(
     gridState: LazyGridState,
     coroutineScope: CoroutineScope,
     onRemoveTile: (TileSpec) -> Unit,
+    spideyCapsuleInset: Dp = 0.dp,
     onResize: (operation: ResizeOperation) -> Unit,
 ) {
     itemsIndexed(
@@ -891,6 +910,7 @@ fun LazyGridScope.EditTiles(
                         onRemoveTile = onRemoveTile,
                         coroutineScope = coroutineScope,
                         largeTilesSpan = listState.largeTilesSpan,
+                        spideyCapsuleInset = spideyCapsuleInset,
                     )
                 }
             is SpacerGridCell ->
@@ -929,14 +949,15 @@ private fun LazyGridItemScope.TileGridCell(
     onRemoveTile: (TileSpec) -> Unit,
     coroutineScope: CoroutineScope,
     largeTilesSpan: Int,
+    spideyCapsuleInset: Dp,
     modifier: Modifier = Modifier,
 ) {
     val stateDescription = stringResource(id = R.string.accessibility_qs_edit_position, index + 1)
     val tileState by rememberTileState(cell.tile, selectionState)
     val resizingState = rememberResizingState(cell.tile.tileSpec, cell.isIcon)
     val panelStyle = rememberQSPanelStyle()
-    val panelProgressBlocked =
-        panelStyle && rememberInfinityQsStyle() != INFINITY_QS_STYLE_SPIDEY
+    val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
+    val panelProgressBlocked = panelStyle && !isSpideyStyle
     val progress: () -> Float = {
         if (panelProgressBlocked) {
             0f
@@ -1032,6 +1053,8 @@ private fun LazyGridItemScope.TileGridCell(
         },
         contentDescription = decorationClickLabel,
         iconOnly = cell.isIcon,
+        selectionHorizontalInset =
+            if (isSpideyStyle && !cell.isIcon) spideyCapsuleInset else 0.dp,
     ) {
         // Rapidly composing elements with the draggable modifier can cause visual jank. This
         // usually happens when resizing a tile multiple times. We can fix this by applying the
@@ -1104,6 +1127,8 @@ private fun LazyGridItemScope.TileGridCell(
                     alpha = { containerAlpha },
                     color = { colors.background },
                     iconOnly = cell.isIcon,
+                    horizontalInset =
+                        if (isSpideyStyle && !cell.isIcon) spideyCapsuleInset else 0.dp,
                 )
                 .keyboardShortcuts(cell.tile.tileSpec, selectionState) {
                     onResize(FinalResizeOperation(cell.tile.tileSpec, !cell.isIcon))
@@ -1412,16 +1437,14 @@ private fun Modifier.tileBackground(
     alpha: () -> Float = { 1f },
     color: () -> Color,
     iconOnly: Boolean,
+    horizontalInset: Dp = 0.dp,
 ): Modifier {
     val panelStyle = rememberQSPanelStyle()
     val shapeMode = rememberTileShapeMode()
     val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
-    val spideyIconCircleSize = rememberClassicTileIconSize() - 8.dp
     return if (isSpideyStyle && !iconOnly) {
         drawBehind {
-            val columnWidth = (size.width - TileArrangementPadding.toPx()) / 2f
-            val edgeInset =
-                ((columnWidth - spideyIconCircleSize.toPx()) / 2f).coerceAtLeast(0f)
+            val edgeInset = horizontalInset.toPx()
             drawRoundRect(
                 color = color(),
                 topLeft = Offset(edgeInset, 0f),
