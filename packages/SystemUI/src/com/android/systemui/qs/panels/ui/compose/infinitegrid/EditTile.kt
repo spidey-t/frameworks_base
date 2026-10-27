@@ -934,6 +934,8 @@ private fun LazyGridItemScope.TileGridCell(
     val tileState by rememberTileState(cell.tile, selectionState)
     val resizingState = rememberResizingState(cell.tile.tileSpec, cell.isIcon)
     val panelStyle = rememberQSPanelStyle()
+    val isSpideyStyle = rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY
+    val spideyIconCircleSize = rememberClassicTileIconSize() - 8.dp
     val panelProgressBlocked =
         panelStyle && rememberInfinityQsStyle() != INFINITY_QS_STYLE_SPIDEY
     val progress: () -> Float = {
@@ -1013,15 +1015,34 @@ private fun LazyGridItemScope.TileGridCell(
         selectionState.unSelect()
         onRemoveTile(cell.tile.tileSpec)
     }
+    val tileModifier =
+        modifier
+            .height(TileHeight)
+            .fillMaxWidth()
+            .thenIf(isSpideyStyle && !cell.isIcon) {
+                Modifier.layout { measurable, constraints ->
+                    val span = cell.width.coerceAtLeast(1)
+                    val spacing = TileArrangementPadding.roundToPx()
+                    val columnWidth =
+                        (constraints.maxWidth - spacing * (span - 1)) / span
+                    val edgeInset =
+                        ((columnWidth - spideyIconCircleSize.roundToPx()) / 2).coerceAtLeast(0)
+                    val contentWidth = (constraints.maxWidth - edgeInset * 2).coerceAtLeast(0)
+                    val placeable =
+                        measurable.measure(
+                            constraints.copy(minWidth = contentWidth, maxWidth = contentWidth)
+                        )
+                    layout(constraints.maxWidth, placeable.height) {
+                        placeable.placeRelative(edgeInset, 0)
+                    }
+                }
+            }
+            .animateItem(placementSpec = placementSpec)
+            .tileTestTag(cell.isIcon)
     InteractiveTileContainer(
         tileState = tileState,
         resizingState = resizingState,
-        modifier =
-            modifier
-                .height(TileHeight)
-                .fillMaxWidth()
-                .animateItem(placementSpec = placementSpec)
-                .tileTestTag(cell.isIcon),
+        modifier = tileModifier,
         onClick = {
             if (tileState == TileState.Removable) {
                 removeTile()
