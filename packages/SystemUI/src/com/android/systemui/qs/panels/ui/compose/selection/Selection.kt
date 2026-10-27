@@ -80,6 +80,8 @@ import com.android.systemui.common.ui.compose.gestures.dragSpy
 import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.qs.flags.QsEditModeFocusFixes
 import com.android.systemui.qs.flags.QsEditModeHoverFixes
+import com.android.systemui.qs.panels.ui.compose.INFINITY_QS_STYLE_SPIDEY
+import com.android.systemui.qs.panels.ui.compose.rememberInfinityQsStyle
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.ActiveTileCornerRadius
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.InactiveTileCornerRadius
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.rememberQSPanelStyle
@@ -228,6 +230,8 @@ private fun Modifier.selectionBorder(
 ): Modifier {
     val shapeMode = rememberTileShapeMode()
     val panelStyle = rememberQSPanelStyle()
+    val spideyWideTile =
+        rememberInfinityQsStyle() == INFINITY_QS_STYLE_SPIDEY && !iconOnly
     val borderRadiusPx = with(LocalDensity.current) {
         when (shapeMode) {
             1 -> InactiveTileCornerRadius.toPx()
@@ -242,7 +246,7 @@ private fun Modifier.selectionBorder(
         drawContent()
 
         val borderWidth = selectionBorderWidth.toPx()
-        if (panelStyle || (shapeMode == 4 && iconOnly)) {
+        if ((panelStyle && !spideyWideTile) || (shapeMode == 4 && iconOnly)) {
             drawCircle(
                 brush = SolidColor(selectionColor),
                 radius = (min(size.width, size.height) - borderWidth) / 2f,
@@ -254,7 +258,8 @@ private fun Modifier.selectionBorder(
             // Draw the border on the inside of the tile
             drawRoundRect(
                 SolidColor(selectionColor),
-                cornerRadius = CornerRadius(borderRadiusPx),
+                cornerRadius =
+                    CornerRadius(if (spideyWideTile) size.height / 2f else borderRadiusPx),
                 topLeft = Offset(borderWidth / 2, borderWidth / 2),
                 size = Size(size.width - borderWidth, size.height - borderWidth),
                 style = Stroke(borderWidth),
